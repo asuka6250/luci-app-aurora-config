@@ -1,0 +1,50 @@
+name: Auto Sync and Patch Order
+
+on:
+  schedule:
+    - cron: '0 20 * * *' 
+  workflow_dispatch:    
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Your Fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Config Git
+        run: |
+          git config --global user.name "asuka6250"
+          git config --global user.email "asuka6250@users.noreply.github.com"
+
+      - name: Sync from Upstream
+        run: |
+          # 添加原作者仓库作为上游
+          UPSTREAM_URL=$(curl -s https://api.github.com/repos/${{ github.repository }} | jq -r .parent.clone_url)
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch upstream
+          
+          # 合并上游主分支（假设是 main 或 master，这里自动判断）
+          DEFAULT_BRANCH=$(git remote show upstream | grep 'HEAD branch' | cut -d' ' -f5)
+          git merge upstream/$DEFAULT_BRANCH --no-edit || echo "No changes to merge"
+
+      - name: Patch LuCI JSON
+        run: |
+          TARGET="luci-app-aurora-config/root/usr/share/luci/menu.d/luci-app-aurora.json"
+          if [ -f "$TARGET" ]; then
+            sed -i '/"admin\/system\/aurora"/,/"order": 100/ s/"order": 100/"order": 90/' "$TARGET"
+            echo "Patch applied."
+          fi
+
+      - name: Push Changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: auto adjust menu order to 90"
+            git push origin HEAD
+          else
+            echo "No changes detected, skipping push."
+          fi
