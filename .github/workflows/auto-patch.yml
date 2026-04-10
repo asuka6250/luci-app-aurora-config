@@ -31,7 +31,7 @@ jobs:
 
       - name: Patch LuCI JSON
         run: |
-          TARGET="luci-app-aurora-config/root/usr/share/luci/menu.d/luci-app-aurora.json"
+          TARGET="root/usr/share/luci/menu.d/luci-app-aurora.json"
           if [ -f "$TARGET" ]; then
             sed -i '/"admin\/system\/aurora"/,/"order": 100/ s/"order": 100/"order": 90/' "$TARGET"
             echo "Patch applied."
