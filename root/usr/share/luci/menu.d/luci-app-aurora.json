@@ -1,12 +1,14 @@
 {
   "admin/system/aurora": {
     "title": "Aurora Settings",
-    "order": 100,
+    "order": 90,
     "action": {
       "type": "firstchild"
     },
     "depends": {
-      "acl": ["luci-app-aurora"]
+      "acl": [
+        "luci-app-aurora"
+      ]
     }
   },
   "admin/system/aurora/theme": {

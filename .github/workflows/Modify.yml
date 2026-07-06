@@ -1,0 +1,58 @@
+name: Sync Upstream and Modify JSON
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch: 
+jobs:
+  sync-and-modify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout custom repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Force Sync Upstream and Restore Workflow
+        run: |
+          mkdir -p /tmp/wf-backup
+          cp -r .github/workflows/* /tmp/wf-backup/
+
+          git remote add upstream https://github.com/eamonxg/luci-app-aurora-config.git
+          git fetch upstream master
+          git checkout master
+          git reset --hard upstream/master
+
+          # 把备份的 Action 文件重新放回仓库中
+          mkdir -p .github/workflows
+          cp -r /tmp/wf-backup/* .github/workflows/
+
+      - name: Modify JSON File
+        run: |
+          FILE_PATH="root/usr/share/luci/menu.d/luci-app-aurora.json"
+          
+          if [ -f "$FILE_PATH" ]; then
+            jq '."admin/system/aurora".order = 90' "$FILE_PATH" > temp.json && mv temp.json "$FILE_PATH"
+            echo "JSON file modified successfully."
+          else
+            echo "Error: File $FILE_PATH not found!"
+            exit 1
+          fi
+
+      - name: Commit and Force Push
+        run: |
+          git add root/usr/share/luci/menu.d/luci-app-aurora.json
+          git add .github/workflows/
+          
+          git commit --allow-empty -m "Routine: Force sync upstream (eamonxg), keep workflow & set order to 90"
+          
+          git push origin master --force
